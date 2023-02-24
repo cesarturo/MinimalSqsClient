@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 
 namespace MinimalSqsClient;
 
-public sealed class SqsClient : ISqsClient
+public sealed class SqsClient : ISqsClient, IDisposable
 {
     public string Name { get; }
     private readonly HttpClient _httpClient;
@@ -43,7 +43,7 @@ public sealed class SqsClient : ISqsClient
 
         response.EnsureSuccessStatusCode();
 
-        return await ReceiveMessageResponseReader.ReadSqsMessages(response);
+        return ReceiveMessageResponseReader.ReadSqsMessages(response);
     }
     public async Task<SqsMessage?> ReceiveMessage(int waitTimeSeconds = 5, int visibilityTimeout = 30)
     {
@@ -60,7 +60,7 @@ public sealed class SqsClient : ISqsClient
 
         response.EnsureSuccessStatusCode();
 
-        return await ReceiveMessageResponseReader.ReadSqsMessage(response);
+        return ReceiveMessageResponseReader.ReadSqsMessage(response);
     }
 
     public async Task DeleteMessage(string receiptHandle)
@@ -106,7 +106,7 @@ public sealed class SqsClient : ISqsClient
         var httpResponse = await _httpClient.PostAsync("", new FormUrlEncodedContent(parameters));
 
         httpResponse.EnsureSuccessStatusCode();
-        var listOfIdAndSuccess =  await ChangeMessageVisibilityBatchResponseReader.Read(httpResponse.EnsureSuccessStatusCode(), receiptHandles.Length);
+        var listOfIdAndSuccess = ChangeMessageVisibilityBatchResponseReader.Read(httpResponse.EnsureSuccessStatusCode(), receiptHandles.Length);
         var result = new bool[receiptHandles.Length];
         for (int i = 0; i < listOfIdAndSuccess.Count; i++)
         {
@@ -144,6 +144,11 @@ public sealed class SqsClient : ISqsClient
 
         response.EnsureSuccessStatusCode();
 
-        return await SendMessageResponseReader.ReadMessageId(response);
+        return SendMessageResponseReader.ReadMessageId(response);
+    }
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
     }
 }
