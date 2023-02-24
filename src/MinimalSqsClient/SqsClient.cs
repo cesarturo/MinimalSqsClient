@@ -28,7 +28,7 @@ public sealed class SqsClient : ISqsClient, IDisposable
         };
     }
 
-    public async Task<List<SqsMessage>> ReceiveMessages(int maxNumberOfMessages = 1, int waitTimeSeconds = 5, int visibilityTimeout = 30)
+    public async Task<List<SqsMessage>> ReceiveMessagesAsync(int maxNumberOfMessages = 1, int waitTimeSeconds = 5, int visibilityTimeout = 30)
     {
         var parameters = new KeyValuePair<string, string>[]
         {
@@ -45,7 +45,7 @@ public sealed class SqsClient : ISqsClient, IDisposable
 
         return ReceiveMessageResponseReader.ReadSqsMessages(response);
     }
-    public async Task<SqsMessage?> ReceiveMessage(int waitTimeSeconds = 5, int visibilityTimeout = 30)
+    public async Task<SqsMessage?> ReceiveMessageAsync(int waitTimeSeconds = 5, int visibilityTimeout = 30)
     {
         var parameters = new KeyValuePair<string, string>[]
         {
@@ -63,7 +63,7 @@ public sealed class SqsClient : ISqsClient, IDisposable
         return ReceiveMessageResponseReader.ReadSqsMessage(response);
     }
 
-    public async Task DeleteMessage(string receiptHandle)
+    public async Task DeleteMessageAsync(string receiptHandle)
     {
         var parameters = new KeyValuePair<string, string>[]
         {
@@ -76,7 +76,7 @@ public sealed class SqsClient : ISqsClient, IDisposable
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task ChangeMessageVisibility(string receiptHandle,  int visibilityTimeout)
+    public async Task ChangeMessageVisibilityAsync(string receiptHandle,  int visibilityTimeout)
     {
         var parameters = new KeyValuePair<string, string>[]
         {
@@ -89,7 +89,7 @@ public sealed class SqsClient : ISqsClient, IDisposable
 
         response.EnsureSuccessStatusCode();
     }
-    public async Task<bool[]> ChangeMessageVisibilityBatch(string[] receiptHandles, int visibilityTimeout)
+    public async Task<bool[]> ChangeMessageVisibilityBatchAsync(string[] receiptHandles, int visibilityTimeout)
     {
         var parameters = new List<KeyValuePair<string, string>>(2+ 3* receiptHandles.Length)
         {
@@ -115,7 +115,7 @@ public sealed class SqsClient : ISqsClient, IDisposable
         return result;
     }
 
-    public async Task<string> SendMessage(string body, IDictionary<string, string>? messageAttributes = null, int? delaySeconds = null)
+    public async Task<string> SendMessageAsync(string body, IDictionary<string, string>? messageAttributes = null, int? delaySeconds = null)
     {
         var attributeParametersCount = messageAttributes is null ? 0 : 3 * messageAttributes.Count;
         var parameters = new List<KeyValuePair<string, string>>(3 + attributeParametersCount + (delaySeconds.HasValue ? 1 : 0))
