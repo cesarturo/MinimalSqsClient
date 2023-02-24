@@ -1,13 +1,12 @@
-﻿using System.Collections.Generic;
-using System.Xml;
+﻿using System.Xml;
 
 namespace MinimalSqsClient;
 
 public static class ReceiveMessageResponseReader
 {
-    public static async Task<SqsMessage?> ReadSqsMessage(HttpResponseMessage response)
+    public static SqsMessage? ReadSqsMessage(HttpResponseMessage response)
     {
-        using var reader = XmlReader.Create(response.Content.ReadAsStream(), new XmlReaderSettings { IgnoreWhitespace = true, Async = true });
+        using var reader = XmlReader.Create(response.Content.ReadAsStream(), new XmlReaderSettings { IgnoreWhitespace = true });
 
         reader.ReadStartElement("ReceiveMessageResponse");
         reader.ReadStartElement("ReceiveMessageResult");
@@ -15,15 +14,15 @@ public static class ReceiveMessageResponseReader
         {
             if (reader.Name is "Message" && reader.IsStartElement())
             {
-                return await ReadMessage(reader);
+                return ReadMessage(reader);
             }
         } while (reader.Read());
 
         return null;
     }
-    public static async Task<List<SqsMessage>> ReadSqsMessages(HttpResponseMessage response)
+    public static List<SqsMessage> ReadSqsMessages(HttpResponseMessage response)
     {
-        using var reader = XmlReader.Create(response.Content.ReadAsStream(), new XmlReaderSettings { IgnoreWhitespace = true, Async = true });
+        using var reader = XmlReader.Create(response.Content.ReadAsStream(), new XmlReaderSettings { IgnoreWhitespace = true });
 
         reader.ReadStartElement("ReceiveMessageResponse");
         reader.ReadStartElement("ReceiveMessageResult");
@@ -32,14 +31,14 @@ public static class ReceiveMessageResponseReader
         {
             if (reader.Name is "Message" && reader.IsStartElement())
             {
-                var message = await ReadMessage(reader);
+                var message = ReadMessage(reader);
                 messages.Add(message);
             }
         } while (reader.Read());
 
         return messages;
     }
-    private static async Task<SqsMessage> ReadMessage(XmlReader reader)
+    private static SqsMessage ReadMessage(XmlReader reader)
     {
         SqsMessage message = new SqsMessage() { MessageAttributes = new Dictionary<string, string>() };
         while (reader.Read())
@@ -56,7 +55,7 @@ public static class ReceiveMessageResponseReader
                     break;
                 case "Body" when reader.IsStartElement():
                     reader.Read();
-                    message.Body = await reader.ReadContentAsStringAsync();
+                    message.Body = reader.ReadContentAsString();
                     break;
                 case "MessageAttribute" when reader.IsStartElement():
                     reader.ReadStartElement();
@@ -77,9 +76,9 @@ public static class ReceiveMessageResponseReader
 
 public static class SendMessageResponseReader
 {
-    public static async Task<string> ReadMessageId(HttpResponseMessage response)
+    public static string ReadMessageId(HttpResponseMessage response)
     {
-        using var reader = XmlReader.Create(await response.Content.ReadAsStreamAsync(), new XmlReaderSettings { IgnoreWhitespace = true, Async = true });
+        using var reader = XmlReader.Create(response.Content.ReadAsStream(), new XmlReaderSettings { IgnoreWhitespace = true });
 
         reader.ReadStartElement("SendMessageResponse");
         reader.ReadStartElement("SendMessageResult");
@@ -99,9 +98,9 @@ public static class SendMessageResponseReader
 
 public static class ChangeMessageVisibilityBatchResponseReader
 {
-    public static async Task<List<(int id, bool success)>> Read(HttpResponseMessage response, int count)
+    public static List<(int id, bool success)> Read(HttpResponseMessage response, int count)
     {
-        using var reader = XmlReader.Create(await response.Content.ReadAsStreamAsync(), new XmlReaderSettings { IgnoreWhitespace = true, Async = true });
+        using var reader = XmlReader.Create(response.Content.ReadAsStream(), new XmlReaderSettings { IgnoreWhitespace = true });
 
         reader.ReadStartElement("ChangeMessageVisibilityBatchResponse");
         while (reader.Name is not "ChangeMessageVisibilityBatchResult" & reader.Read()) { }
