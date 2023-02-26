@@ -1,5 +1,6 @@
-﻿using Amazon.Runtime;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
+using MinimalSqsClient.Internal;
+using MinimalSqsClient.Internal.ResponseReaders;
 
 namespace MinimalSqsClient;
 
@@ -11,23 +12,21 @@ public sealed class SqsClient : ISqsClient, IDisposable
     public SqsClient(SqsClientOptions options, string? name = null)
     {
         Name = name ?? Options.DefaultName;
-        var region = options.Region ?? QueueUrlRegionExtractor.Extract(options.QueueUrl);
-        _httpClient = CreateHttpClient(options.QueueUrl, options.Credentials, region);
+        _httpClient = CreateHttpClient(options.QueueUrl, options);
     }
 
-    private HttpClient CreateHttpClient(string queueUrl, AWSCredentials? credentials, string region)
+    private HttpClient CreateHttpClient(string queueUrl, SqsClientOptions options)
     {
-        var handler = new RequestSignerHttpHandler(region, credentials);
-        handler.InnerHandler = new SocketsHttpHandler
-        {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(5)
-        };
-        return new HttpClient(handler)
+        var httpHandler = HttpHandlersConfigurator.GetConfiguredHttpHandler(options);
+        var httpClient =  new HttpClient(httpHandler)
         {
             BaseAddress = new Uri(queueUrl)
         };
+        options.ConfigureHttpClient?.Invoke(httpClient);
+        return httpClient;
     }
 
+   
     public async Task<List<SqsMessage>> ReceiveMessagesAsync(int maxNumberOfMessages = 1, int waitTimeSeconds = 5, int visibilityTimeout = 30)
     {
         var parameters = new KeyValuePair<string, string>[]
@@ -152,3 +151,7 @@ public sealed class SqsClient : ISqsClient, IDisposable
         _httpClient.Dispose();
     }
 }
+//Docs sqs:
+//https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/Welcome.html
+//https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-making-api-requests.html
+//https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ReceiveMessage.html

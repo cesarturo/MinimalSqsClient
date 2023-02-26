@@ -1,4 +1,4 @@
-﻿namespace MinimalSqsClient;
+﻿namespace MinimalSqsClient.Internal;
 
 internal static class Exceptions
 {

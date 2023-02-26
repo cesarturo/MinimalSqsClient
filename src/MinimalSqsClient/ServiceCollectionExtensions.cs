@@ -9,7 +9,6 @@ public static class ServiceCollectionExtensions
     public static OptionsBuilder<SqsClientOptions> AddSqsClient(this IServiceCollection services, string? name = null)
     {
         name ??= Options.DefaultName;
-
         services.TryAddSingleton<ISqsClientFactory>(serviceProvider=>
             new SqsClientFactory(serviceProvider.GetRequiredService<IEnumerable<ISqsClient>>()));
         

@@ -5,23 +5,19 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Web;
 
-namespace MinimalSqsClient
+namespace MinimalSqsClient.HttpHandlers
 {
-    public class RequestSignerHttpHandler: DelegatingHandler
+    public sealed class AwsSignatureV4SignerHttpHandler : DelegatingHandler
     {
         private readonly string _region;
         private readonly AWSCredentials _credentials;
         private const string _service = "sqs";
 
-        public RequestSignerHttpHandler(string region, AWSCredentials? credentials = null)
+        public AwsSignatureV4SignerHttpHandler(string region, AWSCredentials? credentials = null)
         {
             _region = region;
             _credentials = credentials ?? FallbackCredentialsFactory.GetCredentials();
         }
-        //Docs sqs:
-        //https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/Welcome.html
-        //https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-making-api-requests.html
-        //https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ReceiveMessage.html
         //Docs auth:
         //https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-api-request-authentication.html
         //https://docs.aws.amazon.com/general/latest/gr/create-signed-request.html#code-signing-examples
@@ -40,7 +36,7 @@ namespace MinimalSqsClient
             request.Headers.Host = request.RequestUri.Host;
             request.Headers.Add("x-amz-security-token", immutableCredentials.Token);
             request.Headers.Add("X-Amz-Date", dateTimeString);
-            request.Headers.Add("X-Amz-Content-SHA256", bodyHash);//esto no dice la documentacion pero si esta en el sdk
+            request.Headers.Add("X-Amz-Content-SHA256", bodyHash);
 
 
             var canonicalRequest = CreateCanonicalRequest(request, dateTimeString, bodyHash, contentType, immutableCredentials);
@@ -48,12 +44,12 @@ namespace MinimalSqsClient
 
             var stringToSign = $"AWS4-HMAC-SHA256\n{dateTimeString}\n{dateString}/{_region}/{_service}/aws4_request\n{canonicalRequestHash}";
 
-            var secret = immutableCredentials.SecretKey;
-            var dates = date.ToString("yyyyMMdd");
-            var kDate = HMACSHA256.HashData(Encoding.UTF8.GetBytes("AWS4" + secret), Encoding.UTF8.GetBytes(dates));
-            var kRegion = HMACSHA256.HashData(kDate, Encoding.UTF8.GetBytes(_region));
-            var kService = HMACSHA256.HashData(kRegion, Encoding.UTF8.GetBytes(_service));
-            var kSigning = HMACSHA256.HashData(kService, Encoding.UTF8.GetBytes("aws4_request"));
+            var secret         = immutableCredentials.SecretKey;
+            var dates          = date.ToString("yyyyMMdd");
+            var kDate          = HMACSHA256.HashData(Encoding.UTF8.GetBytes("AWS4" + secret), Encoding.UTF8.GetBytes(dates));
+            var kRegion        = HMACSHA256.HashData(kDate, Encoding.UTF8.GetBytes(_region));
+            var kService       = HMACSHA256.HashData(kRegion, Encoding.UTF8.GetBytes(_service));
+            var kSigning       = HMACSHA256.HashData(kService, Encoding.UTF8.GetBytes("aws4_request"));
             var signatureBytes = HMACSHA256.HashData(kSigning, Encoding.UTF8.GetBytes(stringToSign));
 
             var signature = GetHex(signatureBytes);
@@ -67,7 +63,7 @@ namespace MinimalSqsClient
             return await base.SendAsync(request, cancellationToken);
         }
 
-       
+
         private static string CreateCanonicalRequest(HttpRequestMessage request, string date, string bodyHash, string contentType, ImmutableCredentials immutableCredentials)
         {
             // request.method.metho.Length + 1 + request.RequestUri.AbsolutePath.Length + 1
@@ -78,11 +74,11 @@ namespace MinimalSqsClient
             var approximateLength = 156 + request.Method.Method.Length + request.RequestUri.AbsolutePath.Length
                                     + request.RequestUri.Query.Length + contentType.Length + request.Headers.Host.Length
                                     + 2 * bodyHash.Length + date.Length + immutableCredentials.Token.Length;
-            var canonicalRequestBuilder = new StringBuilder(approximateLength);
-            canonicalRequestBuilder.Append(request.Method.Method).Append('\n');
-            canonicalRequestBuilder.Append(GetCanonicalAbsolutePath(request)).Append('\n');
+            var canonicalRequestBuilder = new StringBuilder(approximateLength)
+            .Append(request.Method.Method).Append('\n')
+            .Append(GetCanonicalAbsolutePath(request)).Append('\n');
 
-            var queryStringValues = HttpUtility.ParseQueryString(request.RequestUri.Query); //hace UrlDecode al key y value
+            var queryStringValues = HttpUtility.ParseQueryString(request.RequestUri.Query); //this UrlDecodes key and value
             var orderedQueryStringValues = queryStringValues.AllKeys.OrderBy(key => key)
                 .Select(key => (key, queryStringValues[key]));
             bool notFirst = false;
@@ -93,23 +89,23 @@ namespace MinimalSqsClient
                     canonicalRequestBuilder.Append('&');
                     notFirst = true;
                 }
-
                 canonicalRequestBuilder.Append(Uri.EscapeDataString(key)).Append('=').Append(Uri.EscapeDataString(value));
             }
-            canonicalRequestBuilder.Append('\n');
+            canonicalRequestBuilder.Append('\n')
 
-            canonicalRequestBuilder.Append("content-type:").Append(contentType).Append('\n');
-            canonicalRequestBuilder.Append("host:").Append(request.Headers.Host.Trim()).Append('\n');
-            canonicalRequestBuilder.Append("x-amz-content-sha256:").Append(bodyHash).Append('\n');
-            canonicalRequestBuilder.Append("x-amz-date:").Append(date).Append('\n');
-            canonicalRequestBuilder.Append("x-amz-security-token:").Append(immutableCredentials.Token).Append('\n');
-            canonicalRequestBuilder.Append('\n');
+            
+            .Append("content-type:").Append(contentType).Append('\n')
+            .Append("host:").Append(request.Headers.Host.Trim()).Append('\n')
+            .Append("x-amz-content-sha256:").Append(bodyHash).Append('\n')
+            .Append("x-amz-date:").Append(date).Append('\n')
+            .Append("x-amz-security-token:").Append(immutableCredentials.Token).Append('\n')
+            .Append('\n')
 
-            canonicalRequestBuilder.Append("content-type;host;x-amz-content-sha256;x-amz-date;x-amz-security-token").Append('\n');
+            .Append("content-type;host;x-amz-content-sha256;x-amz-date;x-amz-security-token").Append('\n')
 
-            canonicalRequestBuilder.Append(bodyHash);
+            .Append(bodyHash);
 
-            return  canonicalRequestBuilder.ToString();
+            return canonicalRequestBuilder.ToString();
         }
 
         private static string GetCanonicalAbsolutePath(HttpRequestMessage request)
@@ -137,4 +133,4 @@ namespace MinimalSqsClient
             return builder.ToString();
         }
     }
-} 
+}
