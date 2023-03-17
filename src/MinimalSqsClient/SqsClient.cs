@@ -146,6 +146,41 @@ public sealed class SqsClient : ISqsClient, IDisposable
         return SendMessageResponseReader.ReadMessageId(response);
     }
 
+    public async Task<string[]> SendMessageBatchAsync(string[] bodies, IDictionary<string, string>? messageAttributes = null, int? delaySeconds = null)
+    {
+        if (bodies.Length > 10) throw new ArgumentException("Max batch size is 10.");
+        var attributeParametersCount = messageAttributes is null ? 0 : 3 * messageAttributes.Count;
+        var parameters = new List<KeyValuePair<string, string>>(2 + bodies.Length * (2 + attributeParametersCount + (delaySeconds.HasValue ? 1 : 0)))
+        {
+            new("Action", "SendMessageBatch"),
+            new("Version", "2012-11-05")
+        };
+        for (int i = 0; i < bodies.Length; i++)
+        {
+            var index = i + 1;
+            parameters.Add(new KeyValuePair<string, string>($"SendMessageBatchRequestEntry.{index}.Id", i.ToString()));
+            parameters.Add(new KeyValuePair<string, string>($"SendMessageBatchRequestEntry.{index}.MessageBody", bodies[i]));
+            int j = 0;
+            foreach (var (key, value) in messageAttributes)
+            {
+                j++;
+                parameters.Add(new KeyValuePair<string, string>($"SendMessageBatchRequestEntry.{index}.MessageAttribute.{j}.Name", key));
+                parameters.Add(new KeyValuePair<string, string>($"SendMessageBatchRequestEntry.{index}.MessageAttribute.{j}.Value.StringValue", value));
+                parameters.Add(new KeyValuePair<string, string>($"SendMessageBatchRequestEntry.{index}.MessageAttribute.{j}.Value.DataType", "String"));
+            }
+            if (delaySeconds.HasValue)
+            {
+                parameters.Add(new KeyValuePair<string, string>($"SendMessageBatchRequestEntry.{i}.DelaySeconds", delaySeconds.Value.ToString()));
+            }
+        }
+
+        var response = await _httpClient.PostAsync("", new FormUrlEncodedContent(parameters));
+
+        response.EnsureSuccessStatusCode();
+
+        return SendMessageBatchResponseReader.ReadMessageIds(response, bodies.Length);
+    }
+
     public void Dispose()
     {
         _httpClient.Dispose();
