@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using System.Net;
+using Microsoft.Extensions.Options;
 using MinimalSqsClient.Internal;
 using MinimalSqsClient.Internal.ResponseReaders;
 
@@ -184,6 +185,24 @@ public sealed class SqsClient : ISqsClient, IDisposable
         return SendMessageBatchResponseReader.ReadMessageIds(response, bodies.Length);
     }
 
+    public async Task<bool> PurgeQueueAsync()
+    {
+        var parameters = new KeyValuePair<string, string>[]
+        {
+            new("Action", "PurgeQueue"),
+            new("Version", "2012-11-05")
+        };
+        var response = await _httpClient.PostAsync("", new FormUrlEncodedContent(parameters));
+        
+
+        if (response.IsSuccessStatusCode) return true;
+        if (response.StatusCode is HttpStatusCode.Forbidden
+            && PurgeQueueResponseReader.ReadErrorCode(response)
+                is "AWS.SimpleQueueService.PurgeQueueInProgress")
+            return false;
+        response.EnsureSuccessStatusCode();
+        return false;//this line will never be reached
+    }
     public void Dispose()
     {
         _httpClient.Dispose();

@@ -10,4 +10,5 @@ public interface ISqsClient
     Task<bool[]> ChangeMessageVisibilityBatchAsync(string[] receiptHandles, int visibilityTimeout);
     Task<string> SendMessageAsync(string body, IDictionary<string, string> messageAttributes, int? delaySeconds = null);
     Task<string[]> SendMessageBatchAsync(string[] bodies, IDictionary<string, string>? messageAttributes = null, int? delaySeconds = null);
+    Task<bool> PurgeQueueAsync();
 }
