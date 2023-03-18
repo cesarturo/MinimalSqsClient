@@ -46,12 +46,20 @@ namespace MinimalSqsClient.HttpHandlers
 
             var secret         = immutableCredentials.SecretKey;
             var dates          = date.ToString("yyyyMMdd");
+#if NET6_0_OR_GREATER
             var kDate          = HMACSHA256.HashData(Encoding.UTF8.GetBytes("AWS4" + secret), Encoding.UTF8.GetBytes(dates));
             var kRegion        = HMACSHA256.HashData(kDate, Encoding.UTF8.GetBytes(_region));
             var kService       = HMACSHA256.HashData(kRegion, Encoding.UTF8.GetBytes(_service));
             var kSigning       = HMACSHA256.HashData(kService, Encoding.UTF8.GetBytes("aws4_request"));
             var signatureBytes = HMACSHA256.HashData(kSigning, Encoding.UTF8.GetBytes(stringToSign));
-
+#endif
+#if NET5_0
+            var kDate          = new HMACSHA256(Encoding.UTF8.GetBytes("AWS4" + secret)).ComputeHash(Encoding.UTF8.GetBytes(dates));
+            var kRegion        = new HMACSHA256(kDate).ComputeHash(Encoding.UTF8.GetBytes(_region));
+            var kService       = new HMACSHA256(kRegion).ComputeHash(Encoding.UTF8.GetBytes(_service));
+            var kSigning       = new HMACSHA256(kService).ComputeHash(Encoding.UTF8.GetBytes("aws4_request"));
+            var signatureBytes = new HMACSHA256(kSigning).ComputeHash(Encoding.UTF8.GetBytes(stringToSign));
+#endif
             var signature = GetHex(signatureBytes);
 
             var authorizationHeaderValue = $"Credential={immutableCredentials.AccessKey}/{dateString}/{_region}/{_service}/aws4_request," +
