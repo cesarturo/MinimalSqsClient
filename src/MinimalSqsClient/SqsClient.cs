@@ -161,12 +161,15 @@ public sealed class SqsClient : ISqsClient, IDisposable
             parameters.Add(new KeyValuePair<string, string>($"SendMessageBatchRequestEntry.{index}.Id", i.ToString()));
             parameters.Add(new KeyValuePair<string, string>($"SendMessageBatchRequestEntry.{index}.MessageBody", bodies[i]));
             int j = 0;
-            foreach (var (key, value) in messageAttributes)
+            if (messageAttributes is not null)
             {
-                j++;
-                parameters.Add(new KeyValuePair<string, string>($"SendMessageBatchRequestEntry.{index}.MessageAttribute.{j}.Name", key));
-                parameters.Add(new KeyValuePair<string, string>($"SendMessageBatchRequestEntry.{index}.MessageAttribute.{j}.Value.StringValue", value));
-                parameters.Add(new KeyValuePair<string, string>($"SendMessageBatchRequestEntry.{index}.MessageAttribute.{j}.Value.DataType", "String"));
+                foreach (var (key, value) in messageAttributes)
+                {
+                    j++;
+                    parameters.Add(new KeyValuePair<string, string>($"SendMessageBatchRequestEntry.{index}.MessageAttribute.{j}.Name", key));
+                    parameters.Add(new KeyValuePair<string, string>($"SendMessageBatchRequestEntry.{index}.MessageAttribute.{j}.Value.StringValue", value));
+                    parameters.Add(new KeyValuePair<string, string>($"SendMessageBatchRequestEntry.{index}.MessageAttribute.{j}.Value.DataType", "String"));
+                } 
             }
             if (delaySeconds.HasValue)
             {
